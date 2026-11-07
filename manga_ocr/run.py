@@ -40,6 +40,16 @@ def process_and_write_results(mocr, img_or_path, write_to):
             f.write(text + "\n")
 
 
+def try_to_process_file(mocr, path, write_to):
+    try:
+        img = Image.open(path)
+        img.load()
+    except (UnidentifiedImageError, OSError) as e:
+        logger.warning(f"Error while reading file {path}: {e}")
+    else:
+        process_and_write_results(mocr, img, write_to)
+
+
 def get_path_key(path):
     return path, path.lstat().st_mtime
 
@@ -102,7 +112,9 @@ def run(
                 else:
                     logger.warning("Error while reading from clipboard ({})".format(error))
             else:
-                if isinstance(img, Image.Image) and not are_images_identical(img, old_img):
+                if isinstance(img, list):
+                    try_to_process_file(mocr, img[0], write_to)
+                elif isinstance(img, Image.Image) and not are_images_identical(img, old_img):
                     process_and_write_results(mocr, img, write_to)
 
             time.sleep(delay_secs)
@@ -123,14 +135,7 @@ def run(
                 path_key = get_path_key(path)
                 if path_key not in old_paths:
                     old_paths.add(path_key)
-
-                    try:
-                        img = Image.open(path)
-                        img.load()
-                    except (UnidentifiedImageError, OSError) as e:
-                        logger.warning(f"Error while reading file {path}: {e}")
-                    else:
-                        process_and_write_results(mocr, img, write_to)
+                    try_to_process_file(mocr, path, write_to)
 
             time.sleep(delay_secs)
 
